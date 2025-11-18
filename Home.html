@@ -24,232 +24,143 @@
         .btn-danger { background-color: var(--error); }
         .error-msg { color: var(--error); text-align: center; min-height: 20px; font-weight: bold; }
         .file-item { background: #2a2a2a; padding: 15px; border-radius: 4px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
-        .file-item-actions a { margin-left: 10px; }
+        .file-item-actions a { margin-left: 10px; color: var(--secondary); text-decoration: none; }
         pre { background: #111; padding: 15px; border-radius: 4px; white-space: pre-wrap; word-wrap: break-word; color: var(--secondary); }
     </style>
 </head>
 <body>
-
     <nav id="navbar">
         <a href="#/Home">Home</a>
         <a href="#/My-Files" id="nav-my-files" style="display:none;">Meus Arquivos</a>
         <a href="#/Login" id="nav-login">Login</a>
         <a href="#" id="nav-logout" style="display:none;">Logout</a>
     </nav>
-
-    <!-- PÁGINAS (mesma estrutura de antes) -->
-    <div id="Home" class="page"><div class="container"><h1>Bem-vindo</h1><p>Faça login para gerenciar seus arquivos de configuração.</p></div></div>
-    <div id="Login" class="page"><div class="container">... (código do login omitido por brevidade, é o mesmo da resposta anterior) ...</div></div>
-    <div id="Register" class="page"><div class="container">... (código do registro omitido por brevidade) ...</div></div>
-
-    <!-- PÁGINA: My-Files -->
-    <div id="My-Files" class="page">
-        <div class="container">
-            <h2>Meus Arquivos</h2>
-            <div id="my-files-list"></div>
-            <button id="create-new-file-btn" class="btn" style="margin-top: 20px;">Criar Novo Arquivo</button>
-        </div>
-    </div>
-
-    <!-- PÁGINA: Edit-File -->
-    <div id="Edit-File" class="page">
-        <div class="container" id="edit-file-container">
-            <!-- Conteúdo dinâmico -->
-        </div>
-    </div>
-
-    <!-- PÁGINA: File (Visualização) -->
-    <div id="File" class="page">
-        <div class="container" id="view-file-container">
-            <!-- Conteúdo dinâmico -->
-        </div>
-    </div>
-
+    <div id="Home" class="page active"><div class="container"><h1>Bem-vindo</h1><p>Faça login para gerenciar seus arquivos. Após salvar, o administrador deve rodar a job de atualização.</p></div></div>
+    <div id="Login" class="page"><div class="container"><h2>Login</h2><div id="login-error" class="error-msg"></div><div class="form-group"><label>Usuário</label><input type="text" id="login-username" class="input-field"></div><div class="form-group"><label>Senha</label><input type="password" id="login-password" class="input-field"></div><button id="login-btn" class="btn">Entrar</button><p style="margin-top:15px">Não tem conta? <a href="#/Register" class="link">Registre-se</a></p></div></div>
+    <div id="Register" class="page"><div class="container"><h2>Registro</h2><div id="register-error" class="error-msg"></div><div class="form-group"><label>Usuário</label><input type="text" id="register-username" class="input-field"></div><div class="form-group"><label>Email</label><input type="email" id="register-email" class="input-field"></div><div class="form-group"><label>Senha</label><input type="password" id="register-password" class="input-field"></div><button id="register-btn" class="btn">Criar Conta</button><p style="margin-top:15px">Já tem conta? <a href="#/Login" class="link">Faça Login</a></p></div></div>
+    <div id="My-Files" class="page"><div class="container"><h2>Meus Arquivos</h2><div id="my-files-list"></div><button id="create-new-file-btn" class="btn" style="margin-top: 20px;">Criar Novo Arquivo</button></div></div>
+    <div id="Edit-File" class="page"><div class="container" id="edit-file-container"></div></div>
+    <div id="File" class="page"><div class="container" id="view-file-container"></div></div>
     <script>
-        // --- CONFIGURAÇÃO E ROTEADOR (mesmo da resposta anterior) ---
-        const BACK4APP_APP_ID = 'SUA_APPLICATION_ID';
-        const BACK4APP_JS_KEY = 'SUA_JAVASCRIPT_KEY';
+        const BACK4APP_APP_ID = 'yXXoz9YmVJ4IDTDnlbSObSgWDj1VVp9Jh49ATbG0';
+        const BACK4APP_JS_KEY = 'r3DpO78YWFmd4khvmUz8hTPYgPNPNYZJ806OX3II';
         Parse.initialize(BACK4APP_APP_ID, BACK4APP_JS_KEY);
         Parse.serverURL = 'https://parseapi.back4app.com/';
-        
-        // ... (código do roteador, login, registro e logout omitido por brevidade, use o da resposta anterior) ...
-
-        // --- LÓGICA DAS PÁGINAS DE ARQUIVO ---
-
-        // Página My-Files
+        const pages = document.querySelectorAll('.page');
+        const navLogin = document.getElementById('nav-login');
+        const navLogout = document.getElementById('nav-logout');
+        const navMyFiles = document.getElementById('nav-my-files');
+        const router = () => {
+            const hash = window.location.hash.split('?')[0] || '#/Home';
+            pages.forEach(page => page.classList.remove('active'));
+            const targetPage = document.getElementById(hash.substring(2));
+            if (targetPage) {
+                targetPage.classList.add('active');
+                const path = hash.substring(1);
+                if (path === '/My-Files') handleMyFilesPage();
+                if (path === '/Edit-File') handleEditFilePage();
+                if (path === '/File') handleViewFilePage();
+            } else {
+                document.getElementById('Home').classList.add('active');
+            }
+            updateNav();
+        };
+        const updateNav = () => {
+            if (Parse.User.current()) {
+                navLogin.style.display = 'none';
+                navLogout.style.display = 'inline-block';
+                navMyFiles.style.display = 'inline-block';
+            } else {
+                navLogin.style.display = 'inline-block';
+                navLogout.style.display = 'none';
+                navMyFiles.style.display = 'none';
+            }
+        };
+        document.getElementById('register-btn').addEventListener('click', async () => {
+            const user = new Parse.User();
+            user.set("username", document.getElementById('register-username').value);
+            user.set("email", document.getElementById('register-email').value);
+            user.set("password", document.getElementById('register-password').value);
+            try {
+                await user.signUp();
+                alert('Usuário registrado com sucesso!');
+                window.location.hash = '#/Login';
+            } catch (error) {
+                document.getElementById('register-error').textContent = `Erro: ${error.message}`;
+            }
+        });
+        document.getElementById('login-btn').addEventListener('click', async () => {
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+            try {
+                await Parse.User.logIn(username, password);
+                window.location.hash = '#/My-Files';
+            } catch (error) {
+                document.getElementById('login-error').textContent = `Erro: ${error.message}`;
+            }
+        });
+        navLogout.addEventListener('click', async () => {
+            await Parse.User.logOut();
+            window.location.hash = '#/Home';
+        });
         const handleMyFilesPage = async () => {
             const currentUser = Parse.User.current();
             if (!currentUser) { window.location.hash = '#/Login'; return; }
-
             const listContainer = document.getElementById('my-files-list');
-            listContainer.innerHTML = '<p>Carregando arquivos...</p>';
-
+            listContainer.innerHTML = '<p>Carregando...</p>';
             const UserFile = Parse.Object.extend("UserFile");
             const query = new Parse.Query(UserFile);
             query.equalTo("owner", currentUser);
             query.descending("updatedAt");
             const files = await query.find();
-
-            if (files.length === 0) {
-                listContainer.innerHTML = '<p>Você ainda não criou nenhum arquivo.</p>';
-                return;
-            }
-
+            if (files.length === 0) { listContainer.innerHTML = '<p>Nenhum arquivo encontrado.</p>'; return; }
             listContainer.innerHTML = '';
             files.forEach(file => {
-                const fileId = file.id;
-                const fileName = file.get('fileName') || 'Arquivo sem nome';
                 const item = document.createElement('div');
                 item.className = 'file-item';
-                item.innerHTML = `
-                    <span>${fileName}</span>
-                    <div class="file-item-actions">
-                        <a href="#/File?id=${fileId}" class="link">Ver</a>
-                        <a href="#/Edit-File?id=${fileId}" class="link">Editar</a>
-                    </div>
-                `;
+                item.innerHTML = `<span>${file.get('fileName') || 'Arquivo sem nome'} (ID: ${file.id})</span><div class="file-item-actions"><a href="#/Edit-File?id=${file.id}">Editar</a></div>`;
                 listContainer.appendChild(item);
             });
         };
-        
-        document.getElementById('create-new-file-btn').addEventListener('click', () => {
-            window.location.hash = '#/Edit-File'; // Vai para a página de edição sem ID
-        });
-
-        // Página Edit-File (Criação e Edição)
+        document.getElementById('create-new-file-btn').addEventListener('click', () => { window.location.hash = '#/Edit-File'; });
         const handleEditFilePage = async () => {
             const currentUser = Parse.User.current();
             if (!currentUser) { window.location.hash = '#/Login'; return; }
-
             const params = new URLSearchParams(window.location.hash.split('?')[1]);
             const fileId = params.get('id');
             const container = document.getElementById('edit-file-container');
-            
             let file = null;
             let fileName = '';
-            let fileContent = '{\n  "setting": "value",\n  "enabled": true\n}'; // Conteúdo padrão para novos arquivos
-
-            if (fileId) { // Modo Edição
-                container.innerHTML = '<h2>Carregando Editor...</h2>';
-                const UserFile = Parse.Object.extend("UserFile");
-                const query = new Parse.Query(UserFile);
+            let fileContent = '{\n  "setting": "value",\n  "enabled": true\n}';
+            if (fileId) {
+                container.innerHTML = '<h2>Carregando...</h2>';
+                const query = new Parse.Query("UserFile");
                 try {
                     file = await query.get(fileId);
-                    // VERIFICAÇÃO DE SEGURANÇA
-                    if (file.get('owner').id !== currentUser.id) {
-                        container.innerHTML = '<h2>Acesso Negado</h2><p>Você não tem permissão para editar este arquivo.</p>';
-                        return;
-                    }
+                    if (file.get('owner').id !== currentUser.id) { container.innerHTML = '<h2>Acesso Negado</h2>'; return; }
                     fileName = file.get('fileName');
-                    fileContent = JSON.stringify(file.get('fileContent'), null, 2); // Formata o JSON
-                } catch (error) {
-                    container.innerHTML = `<h2>Erro</h2><p>Arquivo não encontrado.</p>`;
-                    return;
-                }
+                    fileContent = JSON.stringify(file.get('fileContent'), null, 2);
+                } catch (error) { container.innerHTML = `<h2>Erro</h2><p>Arquivo não encontrado.</p>`; return; }
             }
-
-            // Renderiza o formulário
-            container.innerHTML = `
-                <h2>${fileId ? 'Editar Arquivo' : 'Criar Novo Arquivo'}</h2>
-                <div class="form-group">
-                    <label for="file-name">Nome do Arquivo</label>
-                    <input type="text" id="file-name" class="input-field" value="${fileName}">
-                </div>
-                <div class="form-group">
-                    <label for="file-content">Conteúdo (JSON)</label>
-                    <textarea id="file-content">${fileContent}</textarea>
-                </div>
-                <div id="edit-error" class="error-msg"></div>
-                <button id="save-file-btn" class="btn">Salvar</button>
-                ${fileId ? '<button id="delete-file-btn" class="btn btn-danger" style="margin-top:10px;">Deletar Arquivo</button>' : ''}
-            `;
-
-            // Event Listener para Salvar
+            container.innerHTML = `<h2>${fileId ? 'Editar Arquivo' : 'Criar Arquivo'}</h2><div class="form-group"><label>Nome</label><input type="text" id="file-name" class="input-field" value="${fileName}"></div><div class="form-group"><label>Conteúdo (JSON)</label><textarea id="file-content">${fileContent}</textarea></div><div id="edit-error" class="error-msg"></div><button id="save-file-btn" class="btn">Salvar</button>${fileId ? '<button id="delete-file-btn" class="btn btn-danger" style="margin-top:10px;">Deletar</button>' : ''}`;
             document.getElementById('save-file-btn').addEventListener('click', async () => {
                 const newName = document.getElementById('file-name').value;
                 const newContentStr = document.getElementById('file-content').value;
                 let newContent;
-
-                try {
-                    newContent = JSON.parse(newContentStr);
-                } catch (e) {
-                    document.getElementById('edit-error').textContent = 'Erro: O conteúdo não é um JSON válido.';
-                    return;
-                }
-
-                if (!file) { // Criando novo
-                    file = new (Parse.Object.extend("UserFile"))();
-                    file.set("owner", currentUser);
-                }
-                
+                try { newContent = JSON.parse(newContentStr); } catch (e) { document.getElementById('edit-error').textContent = 'Erro: JSON inválido.'; return; }
+                if (!file) { file = new (Parse.Object.extend("UserFile"))(); file.set("owner", currentUser); }
                 file.set("fileName", newName);
                 file.set("fileContent", newContent);
-
-                try {
-                    await file.save();
-                    alert('Arquivo salvo com sucesso!');
-                    window.location.hash = '#/My-Files';
-                } catch (error) {
-                    document.getElementById('edit-error').textContent = `Erro ao salvar: ${error.message}`;
-                }
+                try { await file.save(); alert('Salvo! Peça ao admin para atualizar a API.'); window.location.hash = '#/My-Files'; } catch (error) { document.getElementById('edit-error').textContent = `Erro: ${error.message}`; }
             });
-
-            // Event Listener para Deletar
             if (fileId) {
                 document.getElementById('delete-file-btn').addEventListener('click', async () => {
-                    if (confirm('Tem certeza que deseja deletar este arquivo permanentemente?')) {
-                        try {
-                            await file.destroy();
-                            alert('Arquivo deletado com sucesso.');
-                            window.location.hash = '#/My-Files';
-                        } catch (error) {
-                            document.getElementById('edit-error').textContent = `Erro ao deletar: ${error.message}`;
-                        }
+                    if (confirm('Deletar este arquivo permanentemente?')) {
+                        try { await file.destroy(); alert('Deletado! Peça ao admin para atualizar a API.'); window.location.hash = '#/My-Files'; } catch (error) { document.getElementById('edit-error').textContent = `Erro: ${error.message}`; }
                     }
                 });
             }
         };
-
-        // Página File (Visualização)
-        const handleViewFilePage = async () => {
-            const container = document.getElementById('view-file-container');
-            container.innerHTML = '<h2>Carregando Arquivo...</h2>';
-            
-            const params = new URLSearchParams(window.location.hash.split('?')[1]);
-            const fileId = params.get('id');
-
-            if (!fileId) {
-                container.innerHTML = '<h2>Erro</h2><p>Nenhum ID de arquivo fornecido.</p>';
-                return;
-            }
-
-            const UserFile = Parse.Object.extend("UserFile");
-            const query = new Parse.Query(UserFile);
-            try {
-                const file = await query.get(fileId);
-                const fileName = file.get('fileName');
-                const fileContent = JSON.stringify(file.get('fileContent'), null, 2);
-                
-                container.innerHTML = `
-                    <h2>${fileName}</h2>
-                    <p>ID do Arquivo: ${file.id}</p>
-                    <pre><code>${fileContent}</code></pre>
-                `;
-            } catch (error) {
-                container.innerHTML = '<h2>Erro</h2><p>Arquivo não encontrado ou acesso negado.</p>';
-            }
-        };
-        
-        // Adiciona as novas rotas ao roteador
-        const originalRouter = router;
-        router = () => {
-            originalRouter(); // Chama a função de roteamento base
-            const hash = window.location.hash.split('?')[0];
-            if (hash === '#/My-Files') handleMyFilesPage();
-            if (hash === '#/Edit-File') handleEditFilePage();
-            if (hash === '#/File') handleViewFilePage();
-        };
-        
         window.addEventListener('hashchange', router);
         window.addEventListener('load', router);
     </script>
